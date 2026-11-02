@@ -1,0 +1,15 @@
+pydantic
+networkx
+numpy
+langgraph
+rich
+typer
+python-dotenv
+sentence-transformers
+matplotlib
+pytest
+datasets
+transformers
+torch 
+detoxify
+better-profanity
