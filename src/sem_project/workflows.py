@@ -166,10 +166,18 @@ def subgoal_node(state: ToxicityState) -> dict[str, Any]:
     tool = state.get("selected_tool")
     out = state.get("last_tool_output") or {}
     steps = len(state.get("tool_history") or [])
-    clean = tool in DETECTORS and float(out.get("score", 0) or 0) == 0 and (out.get("categories") or ["none"]) == ["none"]
+    failed = state.get("last_tool_success") is False
+    clean = (tool in DETECTORS and not failed
+             and float(out.get("score", 0) or 0) == 0
+             and (out.get("categories") or ["none"]) == ["none"])
+    if failed:   # fail closed: no auto-verdict, flag for human review
+        return {"task_context": "DONE", "needs_review": True,
+                "events": [{"type": "subgoal", "action": "end",
+                            "reason": "executor_failure"}]}
     if tool == "explain_toxicity_result" or clean or steps >= MAX_STEPS:
         return {"task_context": "DONE", "events": [{"type": "subgoal", "action": "end"}]}
-    return {"task_context": "Escalate the flagged finding and produce a user-facing explanation", "events": [{"type": "subgoal", "action": "continue"}]}
+    return {"task_context": "Escalate the flagged finding and produce a user-facing explanation",
+            "events": [{"type": "subgoal", "action": "continue"}]}
 
 def _after_subgoal(state: ToxicityState) -> str: return "end" if state.get("task_context") == "DONE" else "continue"
 def _after_selection(state: ToxicityState) -> str: return "execute" if state.get("used_inertia") else "llm_select"
