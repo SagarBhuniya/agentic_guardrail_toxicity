@@ -1,33 +1,44 @@
 """
-Extended Evaluation: Evaluates the agent against a custom combined dataset 
-(Normal Toxicity + Adversarial Jailbreaks).
-Kept separate from eval_live_local_llm.py to preserve the exact reproducibility 
-of the primary Jigsaw benchmark reported in Table VI.
+Extended Evaluation: Evaluates the agent against a custom combined dataset.
+Limited to 60 examples for faster testing.
 """
 import csv
 import time
+import os
+import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from rich.console import Console
 from rich.table import Table
+
+# Make src/ importable for Colab
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+_SRC = os.path.join(_PROJECT_ROOT, "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
 from sem_project.workflows import build_autotool_workflow, build_react_workflow
 
 console = Console()
+MAX_ROWS = 60  # Limit to 60 examples
 
 # ==============================================================================
 # 1. LOAD CUSTOM DATASET
 # ==============================================================================
 def load_custom_dataset(file_path: str):
-    """Loads a local CSV with 'text' and 'expected_verdict' columns."""
+    """Loads a local CSV with 'text' and 'expected_verdict' columns, limited to MAX_ROWS."""
     rows = []
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Normalize the verdict to handle minor casing/spacing issues
-                verdict = row.get("expected_verdict", "CLEAN").strip().upper()
+                if len(rows) >= MAX_ROWS:
+                    break
+                
+                # Safe parse: handles missing column AND empty cells (None)
+                verdict = (row.get("expected_verdict") or "CLEAN").strip().upper()
                 is_toxic = verdict == "TOXIC"
-                category = row.get("category", "general")
+                category = (row.get("category") or "general").strip()
                 
                 rows.append({
                     "text": row["text"],

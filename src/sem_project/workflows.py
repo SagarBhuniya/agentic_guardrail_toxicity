@@ -29,7 +29,7 @@ load_dotenv()
 # -----------------------------------------------------------------------------
 # 2. Helpers & Simulated Fallback
 # -----------------------------------------------------------------------------
-DETECTORS = {"keyword_toxicity_filter", "detoxify_classifier", "moderation_api", "llm_toxicity_judge"}
+DETECTORS = {"keyword_toxicity_filter", "detoxify_classifier", "moderation_api", "llm_toxicity_judge", "jailbreak_classifier"}
 MAX_STEPS = 4
 
 def _enrich_tags() -> None:
@@ -114,6 +114,7 @@ def llm_select_node(state: ToxicityState) -> dict[str, Any]:
     3. Severe/Threats/Hate -> moderation_api
     4. Sarcasm/subtle abuse -> llm_toxicity_judge
     5. Explaining a result -> explain_toxicity_result
+    6. Jailbreaks, 'imagine', 'pretend', or prompt injections -> jailbreak_classifier
     
     You MUST reply with ONLY a valid JSON object. No markdown, no explanations.
     Format: {{"reasoning": "brief reason", "tool_name": "exact_tool_name", "tool_params": {{"text": "..."}}}}"""

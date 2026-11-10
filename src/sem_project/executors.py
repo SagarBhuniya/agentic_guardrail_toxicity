@@ -148,12 +148,45 @@ def run_detoxify_classifier(params: dict[str, Any]) -> ToolResult:
     except Exception as e:
         return ToolResult(False, error=str(e))
 
+# ==============================================================================
+# 6. REAL JAILBREAK CLASSIFIER (ProtectAI DeBERTa-v3)
+# ==============================================================================
+_JAILBREAK_PIPE = None
+def _get_jailbreak_pipe():
+    global _JAILBREAK_PIPE
+    if _JAILBREAK_PIPE is None:
+        from transformers import pipeline
+        # Downloads a small 184M parameter classifier (not an LLM)
+        _JAILBREAK_PIPE = pipeline("text-classification", model="protectai/deberta-v3-base-prompt-injection-v2")
+    return _JAILBREAK_PIPE
+
+def run_jailbreak_classifier(params: dict[str, Any]) -> ToolResult:
+    try:
+        pipe = _get_jailbreak_pipe()
+        text = params.get("text", "")
+        result = pipe(text)[0]
+        
+        # The model returns label 'INJECTION' or 'SAFE'
+        is_injection = result["label"] == "INJECTION"
+        score = result["score"] if is_injection else 0.0
+        categories = ["jailbreak"] if is_injection else ["none"]
+        
+        return ToolResult(True, {
+            "score": round(score, 3),
+            "categories": categories,
+            "analysis": f"DeBERTa Injection Classifier: label={result['label']}, score={score:.3f}",
+            "real_tool": True,
+        })
+    except Exception as e:
+        return ToolResult(False, error=str(e))
+
 EXECUTORS = {
     "keyword_toxicity_filter": run_keyword_toxicity_filter,
     "detoxify_classifier": run_detoxify_classifier,
     "moderation_api": run_moderation_api,
     "llm_toxicity_judge": run_llm_toxicity_judge,
     "explain_toxicity_result": run_explain_toxicity_result,
+    "jailbreak_classifier": run_jailbreak_classifier,
 }
 
 def execute_tool(tool: str, params: dict[str, Any]) -> ToolResult:

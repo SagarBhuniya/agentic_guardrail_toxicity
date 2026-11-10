@@ -75,6 +75,12 @@ _SPECS = [
         },
         notes="Typically follows a detection tool (parameter backtracking demo).",
     ),
+    ToolSpec(
+        name="jailbreak_classifier",
+        description="Transformer classifier specifically trained to detect prompt injections, jailbreaks, and adversarial attacks.",
+        tags=["jailbreak", "injection", "adversarial", "attack", "bypass", "imagine", "pretend"],
+        parameters={"text": ParamSpec(kind="text", required=True)},
+    ),
 ]
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {spec.name: spec for spec in _SPECS}
