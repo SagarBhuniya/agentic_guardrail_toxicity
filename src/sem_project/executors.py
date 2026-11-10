@@ -182,22 +182,23 @@ def run_jailbreak_classifier(params: dict[str, Any]) -> ToolResult:
 # ==============================================================================
 # 7. REAL FALLBACK JUDGE (Llama Guard 3 1B - hazard-taxonomy safety classifier)
 # ==============================================================================
-_GUARD_PIPE = None
+_PROMPT_GUARD_PIPE = None
 
 def _get_prompt_guard():
-    global _GUARD_PIPE
-    if _GUARD_PIPE is None:
+    global _PROMPT_GUARD_PIPE
+    if _PROMPT_GUARD_PIPE is None:
         import torch
         from transformers import pipeline
         print("[INFO] Loading Llama Guard 3 1B (fp16) for fallback...")
-        _GUARD_PIPE = pipeline(
-            "text-generation",
+        _PROMPT_GUARD_PIPE = pipeline(
+            "text-generation",                       # generative model, NOT a classifier
             model="meta-llama/Llama-Guard-3-1B",
             device_map="auto",
-            torch_dtype=torch.float16,      # ~2.6 GB VRAM; fits alongside your stack
+            torch_dtype=torch.float16,
         )
         print("[SUCCESS] Llama Guard 3 loaded.")
-    return _GUARD_PIPE
+    return _PROMPT_GUARD_PIPE
+
 
 def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
     try:
@@ -207,12 +208,14 @@ def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
         out = pipe(messages, max_new_tokens=16, do_sample=False)
         response = out[0]["generated_text"][-1]["content"].strip().lower()
 
-        # Llama Guard replies "safe" or "unsafe\nS<x>S<y>..."
-        is_unsafe = label in ['LABEL_1', 'jailbreak', 'prompt_injection', 'unsafe']
-        hazards = response.split("\n")[1].strip() if is_unsafe and "\n" in response else ""
+        # Llama Guard replies "safe" or "unsafe\nS<x>S<y>..."  -> parse the TEXT
+        first_line = response.split("\n")[0].strip()
+        is_unsafe = (first_line == "unsafe")
+        hazards = response.split("\n")[1].strip() if (is_unsafe and "\n" in response) else ""
 
         score = 0.95 if is_unsafe else 0.0
-        categories = ([f"llama_guard_{hazards}"] if hazards else ["llama_guard_unsafe"]) if is_unsafe else ["none"]
+        categories = ([f"llama_guard_{hazards}"] if hazards else ["llama_guard_unsafe"]) \
+                     if is_unsafe else ["none"]
 
         return ToolResult(True, {
             "score": score,
