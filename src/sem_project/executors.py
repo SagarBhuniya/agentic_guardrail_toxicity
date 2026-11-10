@@ -213,7 +213,7 @@ def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
         return ToolResult(True, {
             "score": round(final_score, 3),
             "categories": categories,
-            "analysis": f"Prompt Guard 2 (86M): {label} ({conf:.3f})",
+            "analysis": f"Prompt Guard 2 (86M): {label} ({score:.3f})",
             "real_tool": True,
         })
     except Exception as e:
