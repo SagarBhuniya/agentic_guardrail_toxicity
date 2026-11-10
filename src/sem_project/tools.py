@@ -81,7 +81,7 @@ _SPECS = [
                     "Do NOT select this tool directly; it only detects jailbreaks and prompt injections, not ordinary toxicity.",
         tags=["jailbreak", "injection", "fallback", "safety"],
         parameters={"text": ParamSpec(kind="text", required=True)},
-        notes="Triggered by subgoal_node fallback logic; excluded from normal routing.",
+        notes="Llama-Prompt-Guard-2-86M classifier (LABEL_1 = unsafe). Triggered by subgoal_node fallback logic; excluded from normal routing.",
     ),
 ]
 

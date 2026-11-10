@@ -187,12 +187,12 @@ def subgoal_node(state: ToxicityState) -> dict[str, Any]:
             "task_context": "Fallback Safety Check",
             "selected_tool": "prompt_guard_fallback",
             "tool_params": {"text": state.get("response_text", "")},
+            "param_trace": [{"param": "text", "via": "fallback_policy", "source": None}],
+            "tool_history": ["prompt_guard_fallback"],
             "used_inertia": False,
             "selection_route": "fallback_policy",
             "selection_reason": "Clean Exit Fallback: Forcing Prompt Guard safety check",
             "events": [{"type": "subgoal", "action": "continue", "reason": "fallback"}],
-            "tool_history": ["prompt_guard_fallback"],
-            "param_trace": [{"param": "text", "via": "fallback_policy", "source": None}],
         }
 
     # 3. Original Clean Exit Logic (Only triggers if Prompt Guard ALSO says 0.0)

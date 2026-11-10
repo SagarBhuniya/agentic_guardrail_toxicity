@@ -180,23 +180,20 @@ def run_jailbreak_classifier(params: dict[str, Any]) -> ToolResult:
         return ToolResult(False, error=str(e))
 
 # ==============================================================================
-# 7. REAL FALLBACK JUDGE (Llama Guard 3 1B - hazard-taxonomy safety classifier)
+# 7. REAL PROMPT GUARD FALLBACK (Llama Prompt Guard 2 - 86M classifier)
 # ==============================================================================
 _PROMPT_GUARD_PIPE = None
 
 def _get_prompt_guard():
     global _PROMPT_GUARD_PIPE
     if _PROMPT_GUARD_PIPE is None:
-        import torch
         from transformers import pipeline
-        print("[INFO] Loading Llama Guard 3 1B (fp16) for fallback...")
+        print("[INFO] Loading Llama Prompt Guard 2 (86M) for fallback...")
         _PROMPT_GUARD_PIPE = pipeline(
-            "text-generation",                       # generative model, NOT a classifier
-            model="meta-llama/Llama-Guard-3-1B",
-            device_map="auto",
-            torch_dtype=torch.float16,
+            "text-classification",                      # classifier, NOT text-generation
+            model="meta-llama/Llama-Prompt-Guard-2-86M",
         )
-        print("[SUCCESS] Llama Guard 3 loaded.")
+        print("[SUCCESS] Prompt Guard loaded.")
     return _PROMPT_GUARD_PIPE
 
 
@@ -204,23 +201,21 @@ def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
     try:
         pipe = _get_prompt_guard()
         text = params.get("text", "")
-        messages = [{"role": "user", "content": text}]   # Llama 3 chat template
-        out = pipe(messages, max_new_tokens=16, do_sample=False)
-        response = out[0]["generated_text"][-1]["content"].strip().lower()
+        result = pipe(text)[0]                          # top-1 label + confidence
 
-        # Llama Guard replies "safe" or "unsafe\nS<x>S<y>..."  -> parse the TEXT
-        first_line = response.split("\n")[0].strip()
-        is_unsafe = (first_line == "unsafe")
-        hazards = response.split("\n")[1].strip() if (is_unsafe and "\n" in response) else ""
+        label = result["label"]
+        conf = result["score"]
 
-        score = 0.95 if is_unsafe else 0.0
-        categories = ([f"llama_guard_{hazards}"] if hazards else ["llama_guard_unsafe"]) \
-                     if is_unsafe else ["none"]
+        # Your diagnostic proved: LABEL_0 = benign, LABEL_1 = jailbreak/injection
+        is_unsafe = label in ["LABEL_1", "jailbreak", "prompt_injection", "unsafe"]
+
+        final_score = max(conf, 0.9) if is_unsafe else 0.0
+        categories = ["jailbreak"] if is_unsafe else ["none"]
 
         return ToolResult(True, {
-            "score": score,
+            "score": round(final_score, 3),
             "categories": categories,
-            "analysis": f"Llama Guard 3 verdict: {response.replace(chr(10), ' ')[:80]}",
+            "analysis": f"Prompt Guard 2 (86M): {label} ({conf:.3f})",
             "real_tool": True,
         })
     except Exception as e:
