@@ -203,13 +203,11 @@ def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
         text = params.get("text", "")
         result = pipe(text)[0]                          # top-1 label + confidence
 
-        label = result["label"]
-        conf = result["score"]
-
-        # Your diagnostic proved: LABEL_0 = benign, LABEL_1 = jailbreak/injection
-        is_unsafe = label in ["LABEL_1", "jailbreak", "prompt_injection", "unsafe"]
-
-        final_score = max(conf, 0.9) if is_unsafe else 0.0
+        label = result['label']
+        score = result['score']
+        # This checkpoint emits raw IDs: LABEL_0 = benign, LABEL_1 = jailbreak/injection
+        is_unsafe = label in ['LABEL_1', 'jailbreak', 'prompt_injection', 'unsafe']
+        final_score = max(score, 0.9) if is_unsafe else 0.0
         categories = ["jailbreak"] if is_unsafe else ["none"]
 
         return ToolResult(True, {
