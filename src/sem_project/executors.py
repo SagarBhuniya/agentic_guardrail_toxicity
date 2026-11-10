@@ -179,13 +179,51 @@ def run_jailbreak_classifier(params: dict[str, Any]) -> ToolResult:
     except Exception as e:
         return ToolResult(False, error=str(e))
 
+# ==============================================================================
+# 7. REAL PROMPT GUARD FALLBACK (86M Classifier)
+# ==============================================================================
+_PROMPT_GUARD_PIPE = None
+
+def _get_prompt_guard():
+    global _PROMPT_GUARD_PIPE
+    if _PROMPT_GUARD_PIPE is None:
+        from transformers import pipeline
+        print("[INFO] Loading Llama Prompt Guard 2 (86M) for fallback...")
+        _PROMPT_GUARD_PIPE = pipeline("text-classification", model="meta-llama/Llama-Prompt-Guard-2-86M")
+        print("[SUCCESS] Prompt Guard loaded.")
+    return _PROMPT_GUARD_PIPE
+
+def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
+    try:
+        pipe = _get_prompt_guard()
+        text = params.get("text", "")
+        result = pipe(text)[0]
+        
+        label = result['label']
+        score = result['score']
+        
+        # Prompt Guard returns 'benign', 'jailbreak', or 'prompt_injection'
+        is_unsafe = label in ['jailbreak', 'prompt_injection']
+        
+        final_score = max(score, 0.9) if is_unsafe else 0.0
+        categories = [f"prompt_guard_{label}"] if is_unsafe else ["none"]
+        
+        return ToolResult(True, {
+            "score": round(final_score, 3),
+            "categories": categories,
+            "analysis": f"Prompt Guard Fallback: {label} ({score:.3f})",
+            "real_tool": True,
+        })
+    except Exception as e:
+        return ToolResult(False, error=str(e))
+    
 EXECUTORS = {
     "keyword_toxicity_filter": run_keyword_toxicity_filter,
     "detoxify_classifier": run_detoxify_classifier,
     "moderation_api": run_moderation_api,
     "llm_toxicity_judge": run_llm_toxicity_judge,
     "explain_toxicity_result": run_explain_toxicity_result,
-    "hypothetical_safety_check": run_jailbreak_classifier,
+    "prompt_guard_fallback": run_prompt_guard_fallback,
 }
 
 def execute_tool(tool: str, params: dict[str, Any]) -> ToolResult:

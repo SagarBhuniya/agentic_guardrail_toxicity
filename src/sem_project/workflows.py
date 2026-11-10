@@ -29,7 +29,7 @@ load_dotenv()
 # -----------------------------------------------------------------------------
 # 2. Helpers & Simulated Fallback
 # -----------------------------------------------------------------------------
-DETECTORS = {"keyword_toxicity_filter", "detoxify_classifier", "moderation_api", "llm_toxicity_judge", "hypothetical_safety_check"}
+DETECTORS = {"keyword_toxicity_filter", "detoxify_classifier", "moderation_api", "llm_toxicity_judge", "prompt_guard_fallback"}
 
 # Update the prompt (Make it Rule 1!):
 MAX_STEPS = 4
@@ -110,13 +110,12 @@ def llm_select_node(state: ToxicityState) -> dict[str, Any]:
     Available Tools:
     {tools_desc}
     
-    STRICT RULES (Follow in order):
-    1. If the text contains 'Imagine', 'Suppose', 'Pretend', 'Roleplay', or is a hypothetical scenario -> hypothetical_safety_check
-    2. Normal/Clean text -> keyword_toxicity_filter
-    3. General toxicity/profanity probability -> detoxify_classifier
-    4. Severe/Threats/Hate -> moderation_api
-    5. Sarcasm/subtle abuse -> llm_toxicity_judge
-    6. Explaining a result -> explain_toxicity_result
+    STRICT RULES:
+    1. Normal/Clean text -> keyword_toxicity_filter
+    2. General toxicity/profanity probability -> detoxify_classifier
+    3. Severe/Threats/Hate -> moderation_api
+    4. Sarcasm/subtle abuse -> llm_toxicity_judge
+    5. Explaining a result -> explain_toxicity_result
 
     
     You MUST reply with ONLY a valid JSON object. No markdown, no explanations.
@@ -171,19 +170,47 @@ def subgoal_node(state: ToxicityState) -> dict[str, Any]:
     out = state.get("last_tool_output") or {}
     steps = len(state.get("tool_history") or [])
     failed = state.get("last_tool_success") is False
-    clean = (tool in DETECTORS and not failed
-             and float(out.get("score", 0) or 0) == 0
-             and (out.get("categories") or ["none"]) == ["none"])
+    tool_history = state.get("tool_history") or []
+    
+    score = float(out.get("score", 0) or 0)
+    cats = out.get("categories") or ["none"]
+    
+    # 1. Check if the current tool declared the text "Clean" (0.0 score)
+    is_clean = (tool in DETECTORS and not failed and score == 0 and cats == ["none"])
+    
+    # 2. FALLBACK LOGIC: If it's clean, but we haven't asked Prompt Guard yet, force a check.
+    # We check tool_history to prevent an infinite loop.
+    needs_fallback = (is_clean and tool != "prompt_guard_fallback" and "prompt_guard_fallback" not in tool_history)
+    
+    if needs_fallback:
+        return {
+            "task_context": "Fallback Safety Check",
+            "selected_tool": "prompt_guard_fallback",
+            "tool_params": {"text": state.get("response_text", "")},
+            "used_inertia": False,
+            "selection_route": "fallback_policy",
+            "selection_reason": "Clean Exit Fallback: Forcing Prompt Guard safety check",
+            "events": [{"type": "subgoal", "action": "continue", "reason": "fallback"}]
+        }
+
+    # 3. Original Clean Exit Logic (Only triggers if Prompt Guard ALSO says 0.0)
     if failed:   # fail closed: no auto-verdict, flag for human review
         return {"task_context": "DONE", "needs_review": True,
-                "events": [{"type": "subgoal", "action": "end",
-                            "reason": "executor_failure"}]}
-    if tool == "explain_toxicity_result" or clean or steps >= MAX_STEPS:
-        return {"task_context": "DONE", "events": [{"type": "subgoal", "action": "end"}]}
+                "events": [{"type": "subgoal", "action": "end", "reason": "executor_failure"}]}
+                
+    if tool == "explain_toxicity_result" or is_clean or steps >= MAX_STEPS:
+        return {"task_context": "DONE", "needs_review": False,
+                "events": [{"type": "subgoal", "action": "end"}]}
+                
     return {"task_context": "Escalate the flagged finding and produce a user-facing explanation",
             "events": [{"type": "subgoal", "action": "continue"}]}
 
-def _after_subgoal(state: ToxicityState) -> str: return "end" if state.get("task_context") == "DONE" else "continue"
+def _after_subgoal(state: ToxicityState) -> str:
+    if state.get("task_context") == "DONE":
+        return "end"
+    if state.get("selection_route") == "fallback_policy":
+        return "fallback"          # go straight to execute, no re-selection
+    return "continue"
 def _after_selection(state: ToxicityState) -> str: return "execute" if state.get("used_inertia") else "llm_select"
 
 def build_autotool_workflow():
@@ -198,7 +225,8 @@ def build_autotool_workflow():
     g.add_edge("llm_select", "execute")
     g.add_edge("execute", "feedback")
     g.add_edge("feedback", "subgoal")
-    g.add_conditional_edges("subgoal", _after_subgoal, {"continue": "auto_select", "end": END})
+    g.add_conditional_edges("subgoal", _after_subgoal,
+    {"continue": "auto_select", "end": END, "fallback": "execute"})
     return g.compile()
 
 def build_react_workflow():
@@ -209,5 +237,6 @@ def build_react_workflow():
     g.add_edge(START, "llm_select")
     g.add_edge("llm_select", "execute")
     g.add_edge("execute", "subgoal")
-    g.add_conditional_edges("subgoal", _after_subgoal, {"continue": "llm_select", "end": END})
+    g.add_conditional_edges("subgoal", _after_subgoal,
+    {"continue": "llm_select", "end": END, "fallback": "execute"})
     return g.compile()

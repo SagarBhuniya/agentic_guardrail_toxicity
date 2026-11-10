@@ -76,10 +76,12 @@ _SPECS = [
         notes="Typically follows a detection tool (parameter backtracking demo).",
     ),
     ToolSpec(
-        name="hypothetical_safety_check",
-        description="Analyzes hypothetical scenarios, roleplay, and polite requests for harmful actions.",
-        tags=["hypothetical", "roleplay", "imagine", "suppose", "pretend", "safety"],
+        name="prompt_guard_fallback",
+        description="Internal safety net invoked AUTOMATICALLY by the subgoal policy when a detector returns a clean score. "
+                    "Do NOT select this tool directly; it only detects jailbreaks and prompt injections, not ordinary toxicity.",
+        tags=["jailbreak", "injection", "fallback", "safety"],
         parameters={"text": ParamSpec(kind="text", required=True)},
+        notes="Triggered by subgoal_node fallback logic; excluded from normal routing.",
     ),
 ]
 
