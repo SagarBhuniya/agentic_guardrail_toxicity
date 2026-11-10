@@ -77,8 +77,8 @@ _SPECS = [
     ),
     ToolSpec(
         name="jailbreak_classifier",
-        description="Transformer classifier specifically trained to detect prompt injections, jailbreaks, and adversarial attacks.",
-        tags=["jailbreak", "injection", "adversarial", "attack", "bypass", "imagine", "pretend"],
+        description="Detects prompt injections and jailbreaks. USE THIS IF the text contains: 'Imagine', 'Suppose', 'As a', 'Hypothetical', 'Roleplay', or 'Pretend'.",
+        tags=["jailbreak", "injection", "imagine", "suppose", "pretend", "roleplay"],
         parameters={"text": ParamSpec(kind="text", required=True)},
     ),
 ]

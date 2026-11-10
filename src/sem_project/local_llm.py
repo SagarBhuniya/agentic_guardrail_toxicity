@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LOCAL_MODEL_ID = os.getenv("SEM_LOCAL_MODEL", "Qwen/Qwen2.5-1.5B-Instruct")
+LOCAL_MODEL_ID = os.getenv("SEM_LOCAL_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 _LOCAL_PIPE = None
 
 def get_local_llm():

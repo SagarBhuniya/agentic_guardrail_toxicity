@@ -149,14 +149,14 @@ def run_detoxify_classifier(params: dict[str, Any]) -> ToolResult:
         return ToolResult(False, error=str(e))
 
 # ==============================================================================
-# 6. REAL JAILBREAK CLASSIFIER (ProtectAI DeBERTa-v3)
+# REAL JAILBREAK CLASSIFIER (ProtectAI DeBERTa-v3)
 # ==============================================================================
 _JAILBREAK_PIPE = None
 def _get_jailbreak_pipe():
     global _JAILBREAK_PIPE
     if _JAILBREAK_PIPE is None:
         from transformers import pipeline
-        # Downloads a small 184M parameter classifier (not an LLM)
+        # This automatically downloads the model on first run (~300MB)
         _JAILBREAK_PIPE = pipeline("text-classification", model="protectai/deberta-v3-base-prompt-injection-v2")
     return _JAILBREAK_PIPE
 
@@ -166,7 +166,6 @@ def run_jailbreak_classifier(params: dict[str, Any]) -> ToolResult:
         text = params.get("text", "")
         result = pipe(text)[0]
         
-        # The model returns label 'INJECTION' or 'SAFE'
         is_injection = result["label"] == "INJECTION"
         score = result["score"] if is_injection else 0.0
         categories = ["jailbreak"] if is_injection else ["none"]
@@ -174,7 +173,7 @@ def run_jailbreak_classifier(params: dict[str, Any]) -> ToolResult:
         return ToolResult(True, {
             "score": round(score, 3),
             "categories": categories,
-            "analysis": f"DeBERTa Injection Classifier: label={result['label']}, score={score:.3f}",
+            "analysis": f"DeBERTa Classifier: {result['label']} ({score:.3f})",
             "real_tool": True,
         })
     except Exception as e:
