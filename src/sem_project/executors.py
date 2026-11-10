@@ -208,7 +208,7 @@ def run_prompt_guard_fallback(params: dict[str, Any]) -> ToolResult:
         response = out[0]["generated_text"][-1]["content"].strip().lower()
 
         # Llama Guard replies "safe" or "unsafe\nS<x>S<y>..."
-        is_unsafe = response.split("\n")[0].strip() == "unsafe"
+        is_unsafe = label in ['LABEL_1', 'jailbreak', 'prompt_injection', 'unsafe']
         hazards = response.split("\n")[1].strip() if is_unsafe and "\n" in response else ""
 
         score = 0.95 if is_unsafe else 0.0
