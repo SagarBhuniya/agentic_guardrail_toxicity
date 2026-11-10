@@ -102,6 +102,7 @@ def llm_select_node(state: ToxicityState) -> dict[str, Any]:
     tools_desc = "\n".join([
         f"- {name}: {spec.description}. Required Params: {list(spec.parameters.keys())}" 
         for name, spec in TOOL_REGISTRY.items()
+        if name != "prompt_guard_fallback"
     ])
     
     system_prompt = f"""You are an expert toxicity moderation agent. 
@@ -116,6 +117,7 @@ def llm_select_node(state: ToxicityState) -> dict[str, Any]:
     3. Severe/Threats/Hate -> moderation_api
     4. Sarcasm/subtle abuse -> llm_toxicity_judge
     5. Explaining a result -> explain_toxicity_result
+    6. NEVER select 'prompt_guard_fallback'. It is invoked automatically by the system.
 
     
     You MUST reply with ONLY a valid JSON object. No markdown, no explanations.
@@ -139,8 +141,8 @@ def llm_select_node(state: ToxicityState) -> dict[str, Any]:
             raise ValueError("LLM returned invalid JSON format.")
             
         tool_name = parsed["tool_name"]
-        if tool_name not in TOOL_REGISTRY:
-            tool_name = "keyword_toxicity_filter" # Safety fallback
+        if tool_name not in TOOL_REGISTRY or tool_name == "prompt_guard_fallback":
+            tool_name = "keyword_toxicity_filter"
             
         params = parsed.get("tool_params", {})
         if "text" not in params: params["text"] = text

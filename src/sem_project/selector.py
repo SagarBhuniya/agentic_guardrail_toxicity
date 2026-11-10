@@ -75,7 +75,7 @@ class ToxicityToolSelector:
     def select(self, state: dict[str, Any]) -> SelectionResult:
         cfg = self.config
         available = [t for t in (state.get("available_tools") or list(TOOL_REGISTRY))
-                     if t in TOOL_REGISTRY] or [DEFAULT_TOOL]
+                     if t in TOOL_REGISTRY and t != "prompt_guard_fallback"] or [DEFAULT_TOOL]
         history = list(state.get("tool_history") or [])
         source = history[-1] if history else START
         context = self._context(state)
