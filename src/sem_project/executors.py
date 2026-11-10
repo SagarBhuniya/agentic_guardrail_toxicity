@@ -185,7 +185,7 @@ EXECUTORS = {
     "moderation_api": run_moderation_api,
     "llm_toxicity_judge": run_llm_toxicity_judge,
     "explain_toxicity_result": run_explain_toxicity_result,
-    "jailbreak_classifier": run_jailbreak_classifier,
+    "hypothetical_safety_check": run_jailbreak_classifier,
 }
 
 def execute_tool(tool: str, params: dict[str, Any]) -> ToolResult:

@@ -76,9 +76,9 @@ _SPECS = [
         notes="Typically follows a detection tool (parameter backtracking demo).",
     ),
     ToolSpec(
-        name="jailbreak_classifier",
-        description="Detects prompt injections and jailbreaks. USE THIS IF the text contains: 'Imagine', 'Suppose', 'As a', 'Hypothetical', 'Roleplay', or 'Pretend'.",
-        tags=["jailbreak", "injection", "imagine", "suppose", "pretend", "roleplay"],
+        name="hypothetical_safety_check",
+        description="Analyzes hypothetical scenarios, roleplay, and polite requests for harmful actions.",
+        tags=["hypothetical", "roleplay", "imagine", "suppose", "pretend", "safety"],
         parameters={"text": ParamSpec(kind="text", required=True)},
     ),
 ]

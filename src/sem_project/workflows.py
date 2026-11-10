@@ -29,7 +29,9 @@ load_dotenv()
 # -----------------------------------------------------------------------------
 # 2. Helpers & Simulated Fallback
 # -----------------------------------------------------------------------------
-DETECTORS = {"keyword_toxicity_filter", "detoxify_classifier", "moderation_api", "llm_toxicity_judge", "jailbreak_classifier"}
+DETECTORS = {"keyword_toxicity_filter", "detoxify_classifier", "moderation_api", "llm_toxicity_judge", "hypothetical_safety_check"}
+
+# Update the prompt (Make it Rule 1!):
 MAX_STEPS = 4
 
 def _enrich_tags() -> None:
@@ -108,13 +110,13 @@ def llm_select_node(state: ToxicityState) -> dict[str, Any]:
     Available Tools:
     {tools_desc}
     
-    STRICT RULES:
-    1. Normal/Clean text -> keyword_toxicity_filter
-    2. General toxicity/profanity probability -> detoxify_classifier
-    3. Severe/Threats/Hate -> moderation_api
-    4. Sarcasm/subtle abuse -> llm_toxicity_judge
-    5. Explaining a result -> explain_toxicity_result
-    6. CRITICAL: If text contains 'Imagine', 'Suppose', 'As a', 'Hypothetical', or 'Pretend' -> jailbreak_classifier
+    STRICT RULES (Follow in order):
+    1. If the text contains 'Imagine', 'Suppose', 'Pretend', 'Roleplay', or is a hypothetical scenario -> hypothetical_safety_check
+    2. Normal/Clean text -> keyword_toxicity_filter
+    3. General toxicity/profanity probability -> detoxify_classifier
+    4. Severe/Threats/Hate -> moderation_api
+    5. Sarcasm/subtle abuse -> llm_toxicity_judge
+    6. Explaining a result -> explain_toxicity_result
 
     
     You MUST reply with ONLY a valid JSON object. No markdown, no explanations.
