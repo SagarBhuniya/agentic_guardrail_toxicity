@@ -20,7 +20,7 @@ if _SRC not in sys.path:
 from sem_project.workflows import build_autotool_workflow, build_react_workflow
 
 console = Console()
-MAX_ROWS = 60  # Limit to 60 examples
+MAX_ROWS = 30  # Limit to 60 examples
 
 # ==============================================================================
 # 1. LOAD CUSTOM DATASET
